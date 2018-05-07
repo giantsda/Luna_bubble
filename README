@@ -1,6 +1,11 @@
- 
-werrrr
+This code solves two phase interaction. The inlet is at the left wall, the outlet is at the right wall.
+It is confirmed work with dealii 8.5.1; trilinos 12.12.1; p4est 2.0;petsc 3.5.4;openMPI 1.10.2; g++ 5.4.0 20160609 at 5/7/2018
 
-
+to run it:
+1. move the file compressed_simple_sparsity_pattern.h into the folder dealii_install_path/include/deal.II/lac luna's code is writtern eailer when there is a file called compressed_simple_sparsity_pattern.h at that time. but newer version of dealii decide to delete that file, move the file will aviod the compiler error.
+2. uncomment line 9 of CMakeLists.txt, which is SET(TARGET "MultiPhase")      	  # Uncomment to run MULTIPHASE simulations
+comment line 10 and 11.
+3. cmake .
+4. make 
+5. mpirun -np 2 ./MultiPhase  Note that you cannot run it in serial mode by ./MultiPhase or mpirun -np 1 ./MultiPhase or you will get errors says "Object is in wrong state [0]PETSC ERROR: Must call MatXXXSetPreallocation() or MatSetUp() on argument 1 "mat" before MatSetValues()". That is because in the function template<int dim>  void  NavierStokesSolver<dim>::solve_U, some Petsc built in function has to be run with more than one processor. If you really want to run it in serial mode, than copy contents in solve_U_serial.cc to replace the implentation of  template<int dim>  void  NavierStokesSolver<dim>::solve_U.
  
-so this code needs to run  my mpirun. it uses deep copy from Mateix to Mat and call petsc solver to solve it.
