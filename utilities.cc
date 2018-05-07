@@ -39,6 +39,7 @@ template<int dim>
 	    return -phi;
 	  }
       }
+    // for filling tank, the initial phi profile is calculated as phi=1*pow(1-(pow(x,2)+pow(y-0.5,2)),200);.
     else if (PROBLEM == BREAKING_DAM)
       return 0.5
 	  * (-std::tanh ((x - 0.35) / sharpness)

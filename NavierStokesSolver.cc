@@ -1129,12 +1129,12 @@ template<int dim>
       PETScWrappers::MPI::Vector &completely_distributed_solution,
       const PETScWrappers::MPI::Vector &rhs)
   {
+    /* I found that luna's original codehas a run time error here. I cannot localte the bug
+     * so I used deep copy to copy the data to Petsc data type and ask Petsc to solve it.
+     * Then, I transfer the soultion back to completely_distributed_solution
+     */
+
     SolverControl solver_control (dof_handler_U.n_dofs (), 1e-6);
-//  PETScWrappers::SolverCG solver(solver_control, mpi_communicator);
-//  PETScWrappers::SolverGMRES solver(solver_control, mpi_communicator);
-//  PETScWrappers::SolverChebychev solver(solver_control, mpi_communicator);
-//    printf ("A is %d by %d \n", dof_handler_U.n_dofs (),
-//	    dof_handler_U.n_dofs ());
     PETScWrappers::SolverBicgstab solver (solver_control, mpi_communicator);
     constraints.distribute (completely_distributed_solution);
 
@@ -1142,27 +1142,22 @@ template<int dim>
 
     KSP ksp;
     PC pc;
-    Mat A, M;
-    Vec X, B, D;
+    Mat A;
+    Vec X, B;
     KSPConvergedReason reason;
-    PetscInt its, Istart, Iend;
     PetscErrorCode ierr;
     int N = dof_handler_U.n_dofs ();
-    int de;
-    int rows_total = Matrix.m ();
-    int columns_total = Matrix.n ();
-//    printf ("n_nonzero_elements is %d\n,", Matrix.n_nonzero_elements ());
-//    printf ("%d    %d  \n", rows_total, columns_total);
+    int rows_total = Matrix.m (); // Petsc needs these variable to set up the solver
     int nonzeroguess = Matrix.n_nonzero_elements () / rows_total * 3;
+    /* Petsc requires knowning the nonzero numbers for each row in advance to speed up the solver provess
+     * I guess the nonzero number is the total ninzero elements / rownumbers*3
+     * You can pass the spaseity patteren to Petsc to speed it up more.
+     */
 
-    //rhs.print (std::cout);
-
-    MatCreate (mpi_communicator, &A);
-
+    MatCreate (mpi_communicator, &A); // Look the website http://www.mcs.anl.gov/petsc/documentation/index.html for more info.
     MatSetSizes (A, PETSC_DECIDE, PETSC_DECIDE, N, N);
     MatSetFromOptions (A);
     MatMPIAIJSetPreallocation (A, nonzeroguess, NULL, nonzeroguess, NULL);
-//  MatGetOwnershipRange(A,&Istart,&Iend);
 
     VecCreate (PETSC_COMM_WORLD, &X);
     VecSetSizes (X, PETSC_DECIDE, N);
@@ -1189,14 +1184,14 @@ template<int dim>
 	  }
 	ierr = MatRestoreRow (Matrix, row, &ncols, &colnums, &values);
       }
-
+/* deep copy form Matrix to Mat A
+ */
     PetscScalar *val;
     PetscInt nlocal, istart, iend;
     VecGetLocalSize (rhs, &nlocal);
     VecGetOwnershipRange (rhs, &istart, &iend);
 
     loc_range = rhs.local_range ();
-    int P = Utilities::MPI::this_mpi_process (mpi_communicator);
     for (row = loc_range.first; row < loc_range.second; ++row)
       {
 	double value = rhs[row];
@@ -1205,6 +1200,7 @@ template<int dim>
 	VecSetValues (B, 1, &r, &value, INSERT_VALUES);
       }
 
+    // deep copy rhs to Vec B.
     MatAssemblyBegin (A, MAT_FINAL_ASSEMBLY);
     MatAssemblyEnd (A, MAT_FINAL_ASSEMBLY);
     VecAssemblyBegin (B);
@@ -1212,29 +1208,18 @@ template<int dim>
     VecAssemblyBegin (rhs);
     VecAssemblyEnd (rhs);
 
-//    printf ("----------------\n");
-//    printf ("A=\n");
-//    MatView (A, PETSC_VIEWER_STDOUT_WORLD);
-//    printf ("B=\n");
-//    VecView (B, PETSC_VIEWER_STDOUT_WORLD);
-//    printf ("----------------\n");
-
     // solveing
     KSPCreate (mpi_communicator, &ksp);
+    // look http://www.mcs.anl.gov/petsc/petsc-current/docs/manualpages/KSP/KSPCreate.html and their examples for more info.
     KSPSetOperators (ksp, A, A);
     KSPSetType (ksp, KSPBCGS);
-    KSPSetTolerances(ksp,PETSC_DEFAULT,PETSC_DEFAULT,PETSC_DEFAULT,20);
+    KSPSetTolerances (ksp, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, 20);
     KSPSetInitialGuessNonzero (ksp, PETSC_TRUE);
     KSPGetPC (ksp, &pc);
-
-    PCSetType (pc, PCEISENSTAT);  // change it
+    PCSetType (pc, PCEISENSTAT);  // you can change it to other preconditioner
     KSPSetFromOptions (ksp);
     KSPSetUp (ksp);
     KSPSolve (ksp, B, X);
-
-//    printf ("X=\n");
-//    VecView (X, PETSC_VIEWER_STDOUT_WORLD);
-//    std::cin >> de;
 
     KSPGetConvergedReason (ksp, &reason);
     if (reason == KSP_DIVERGED_INDEFINITE_PC)
@@ -1253,17 +1238,11 @@ template<int dim>
       }
     else
       {
-//	KSPGetIterationNumber (ksp, &its);
-//	PetscPrintf (PETSC_COMM_WORLD, "\nConvergence in %d iterations.\n",
-//		     (int) its);
 	;
       }
 
     VecAssemblyBegin (completely_distributed_solution);
     VecAssemblyEnd (completely_distributed_solution);
-
-//    completely_distributed_solution=&X;
-
     VecGetArray (X, &val);
     VecGetLocalSize (X, &nlocal);
     VecGetOwnershipRange (X, &istart, &iend);
@@ -1283,21 +1262,16 @@ template<int dim>
 		std::vector<size_type> haha1 =
 		  { i };
 		std::vector<PetscScalar> haha2 =
-		  { value };
-		//printf("start=%d end=%d tryint to %d  localsize=%d ",istart,iend,i,nlocal);
+		  { value};
 		completely_distributed_solution.set (haha1, haha2);
-//			printf("set value done\n");
 	      }
 	  }
-      }
-
-//    completely_distributed_solution=cast<dealii::PETScWrappers:Vector>(*X);
+      }     // deep copy X back to completely_distributed_solution.
 
     completely_distributed_solution.compress (VectorOperation::insert);
 
     int iter;
     KSPGetIterationNumber (ksp, &iter);
-
     KSPDestroy (&ksp);
     MatDestroy (&A);
     VecDestroy (&B);
@@ -1312,7 +1286,6 @@ template<int dim>
 
     if (solver_control.last_step () > MAX_NUM_ITER_TO_RECOMPUTE_PRECONDITIONER)
       rebuild_Matrix_U_preconditioners = true;
-//    if (verbose == true)
     pcout << "   Solved U in " << iter << " iterations." << std::endl;
   }
 template<int dim>
@@ -1333,9 +1306,9 @@ template<int dim>
     constraints.distribute (completely_distributed_solution);
     if (solver_control.last_step () > MAX_NUM_ITER_TO_RECOMPUTE_PRECONDITIONER)
       rebuild_S_M_preconditioners = true;
-//    if (verbose == true)
-//      pcout << "   Solved P in " << solver_control.last_step ()
-//	  << " iterations." << std::endl;
+    if (verbose == true)
+      pcout << "   Solved P in " << solver_control.last_step ()
+	  << " iterations." << std::endl;
   }
 
 ///////////////////////////////////////////////////////
