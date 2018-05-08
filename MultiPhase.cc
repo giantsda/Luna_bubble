@@ -855,7 +855,7 @@ MPI_Status status;
 double umax_0;
 double umax_max_0 = 0;
 
-cfl = 0.15 * 0.01 / min_h; // change the values of cfl to adjust the time_step_size
+cfl = 0.15 * 0.008 / min_h; // change the values of cfl to adjust the time_step_size
 int N = triangulation.n_global_active_cells ();
 for (timestep_number = 1, time = time_step; timestep_number <= 100000; time +=
     time_step, ++timestep_number)
