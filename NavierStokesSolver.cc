@@ -69,6 +69,8 @@ template<int dim>
     void
     set_rho_and_nu_functions (const Function<dim> &rho_function,
 			      const Function<dim> &nu_function);
+    void
+    set_time_step (double new_time_step);
     //initial conditions
     void
     initial_condition (PETScWrappers::MPI::Vector locally_relevant_solution_rho,
@@ -142,6 +144,15 @@ template<int dim>
 	std_cxx1x::shared_ptr<PETScWrappers::PreconditionBoomerAMG> preconditioner,
 	PETScWrappers::MPI::Vector &completely_distributed_solution,
 	const PETScWrappers::MPI::Vector &rhs);
+
+    void
+    solve_U_serial (
+	const ConstraintMatrix &constraints,
+	PETScWrappers::MPI::SparseMatrix &Matrix,
+	std_cxx1x::shared_ptr<PETScWrappers::PreconditionBoomerAMG> preconditioner,
+	PETScWrappers::MPI::Vector &completely_distributed_solution,
+	const PETScWrappers::MPI::Vector &rhs);
+
     void
     solve_P (
 	const ConstraintMatrix &constraints,
@@ -371,6 +382,13 @@ template<int dim>
     this->boundary_values_id_v = boundary_values_id_v;
     this->boundary_values_u = boundary_values_u;
     this->boundary_values_v = boundary_values_v;
+  }
+
+template<int dim>
+  void
+  NavierStokesSolver<dim>::set_time_step (double new_time_step)
+  {
+    time_step = new_time_step;
   }
 
 template<int dim>
@@ -669,21 +687,24 @@ template<int dim>
     system_rhs_w = 0;
 
     const QGauss<dim> quadrature_formula (degree_MAX + 1);
-    FEValues<dim> fe_values_LS (
-	fe_LS,
-	quadrature_formula,
-	update_values | update_gradients | update_quadrature_points
-	    | update_JxW_values);
-    FEValues<dim> fe_values_U (
-	fe_U,
-	quadrature_formula,
-	update_values | update_gradients | update_quadrature_points
-	    | update_JxW_values);
-    FEValues<dim> fe_values_P (
-	fe_P,
-	quadrature_formula,
-	update_values | update_gradients | update_quadrature_points
-	    | update_JxW_values);
+    FEValues < dim
+	> fe_values_LS (
+	    fe_LS,
+	    quadrature_formula,
+	    update_values | update_gradients | update_quadrature_points
+		| update_JxW_values);
+    FEValues < dim
+	> fe_values_U (
+	    fe_U,
+	    quadrature_formula,
+	    update_values | update_gradients | update_quadrature_points
+		| update_JxW_values);
+    FEValues < dim
+	> fe_values_P (
+	    fe_P,
+	    quadrature_formula,
+	    update_values | update_gradients | update_quadrature_points
+		| update_JxW_values);
 
     const unsigned int dofs_per_cell = fe_U.dofs_per_cell;
     const unsigned int n_q_points = quadrature_formula.size ();
@@ -708,12 +729,12 @@ template<int dim>
     //std::vector<Tensor<1, dim> > grad_wn(n_q_points);
     //Tensor<1, dim> Un;
 
-    std::vector<Tensor<1, dim> > grad_pqn (n_q_points);
-    std::vector<Tensor<1, dim> > grad_psiqn (n_q_points);
-    std::vector<Tensor<1, dim> > grad_psiqnm1 (n_q_points);
+    std::vector < Tensor<1, dim> > grad_pqn (n_q_points);
+    std::vector < Tensor<1, dim> > grad_psiqn (n_q_points);
+    std::vector < Tensor<1, dim> > grad_psiqnm1 (n_q_points);
 
     std::vector<unsigned int> local_dof_indices (dofs_per_cell);
-    std::vector<Tensor<1, dim> > shape_grad (dofs_per_cell);
+    std::vector < Tensor<1, dim> > shape_grad (dofs_per_cell);
     std::vector<double> shape_value (dofs_per_cell);
 
     double force_u;
@@ -970,21 +991,24 @@ template<int dim>
 
     const QGauss<dim> quadrature_formula (degree_MAX + 1);
 
-    FEValues<dim> fe_values_U (
-	fe_U,
-	quadrature_formula,
-	update_values | update_gradients | update_quadrature_points
-	    | update_JxW_values);
-    FEValues<dim> fe_values_P (
-	fe_P,
-	quadrature_formula,
-	update_values | update_gradients | update_quadrature_points
-	    | update_JxW_values);
-    FEValues<dim> fe_values_LS (
-	fe_LS,
-	quadrature_formula,
-	update_values | update_gradients | update_quadrature_points
-	    | update_JxW_values);
+    FEValues < dim
+	> fe_values_U (
+	    fe_U,
+	    quadrature_formula,
+	    update_values | update_gradients | update_quadrature_points
+		| update_JxW_values);
+    FEValues < dim
+	> fe_values_P (
+	    fe_P,
+	    quadrature_formula,
+	    update_values | update_gradients | update_quadrature_points
+		| update_JxW_values);
+    FEValues < dim
+	> fe_values_LS (
+	    fe_LS,
+	    quadrature_formula,
+	    update_values | update_gradients | update_quadrature_points
+		| update_JxW_values);
 
     const unsigned int dofs_per_cell = fe_P.dofs_per_cell;
     const unsigned int n_q_points = quadrature_formula.size ();
@@ -995,13 +1019,13 @@ template<int dim>
     Vector<double> cell_rhs_q (dofs_per_cell);
 
     std::vector<double> phiqnp1 (n_q_points);
-    std::vector<Tensor<1, dim> > gunp1 (n_q_points);
-    std::vector<Tensor<1, dim> > gvnp1 (n_q_points);
-    std::vector<Tensor<1, dim> > gwnp1 (n_q_points);
+    std::vector < Tensor<1, dim> > gunp1 (n_q_points);
+    std::vector < Tensor<1, dim> > gvnp1 (n_q_points);
+    std::vector < Tensor<1, dim> > gwnp1 (n_q_points);
 
     std::vector<unsigned int> local_dof_indices (dofs_per_cell);
     std::vector<double> shape_value (dofs_per_cell);
-    std::vector<Tensor<1, dim> > shape_grad (dofs_per_cell);
+    std::vector < Tensor<1, dim> > shape_grad (dofs_per_cell);
 
     typename DoFHandler<dim>::active_cell_iterator cell_P =
 	dof_handler_P.begin_active (), endc_P = dof_handler_P.end ();
@@ -1165,8 +1189,8 @@ template<int dim>
     VecDuplicate (X, &B);
 
     typedef types::global_dof_index size_type;
-    std::pair<PETScWrappers::MatrixBase::size_type,
-	PETScWrappers::MatrixBase::size_type> loc_range = Matrix.local_range ();
+    std::pair < PETScWrappers::MatrixBase::size_type, PETScWrappers::MatrixBase::size_type
+	> loc_range = Matrix.local_range ();
     PetscInt ncols;
     const PetscInt *colnums;
     const PetscScalar *values;
@@ -1175,7 +1199,7 @@ template<int dim>
       {
 	PetscErrorCode ierr = MatGetRow (Matrix, row, &ncols, &colnums,
 					 &values);
-	AssertThrow(ierr == 0, ExcPETScError (ierr));
+	AssertThrow (ierr == 0, ExcPETScError (ierr));
 	for (PetscInt col = 0; col < ncols; ++col)
 	  {
 	    int x_row = row, x_col = colnums[col];
@@ -1184,8 +1208,8 @@ template<int dim>
 	  }
 	ierr = MatRestoreRow (Matrix, row, &ncols, &colnums, &values);
       }
-/* deep copy form Matrix to Mat A
- */
+    /* deep copy form Matrix to Mat A
+     */
     PetscScalar *val;
     PetscInt nlocal, istart, iend;
     VecGetLocalSize (rhs, &nlocal);
@@ -1213,7 +1237,7 @@ template<int dim>
     // look http://www.mcs.anl.gov/petsc/petsc-current/docs/manualpages/KSP/KSPCreate.html and their examples for more info.
     KSPSetOperators (ksp, A, A);
     KSPSetType (ksp, KSPBCGS);
-    KSPSetTolerances (ksp, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, 20);
+    KSPSetTolerances (ksp, PETSC_DEFAULT, PETSC_DEFAULT, PETSC_DEFAULT, 30);
     KSPSetInitialGuessNonzero (ksp, PETSC_TRUE);
     KSPGetPC (ksp, &pc);
     PCSetType (pc, PCEISENSTAT);  // you can change it to other preconditioner
@@ -1253,7 +1277,7 @@ template<int dim>
       {
 	// This is slow, but most likely only used to debug.
 	const int mpi_ierr = MPI_Barrier (mpi_communicator);
-	AssertThrowMPI(mpi_ierr);
+	AssertThrowMPI (mpi_ierr);
 	if (i == Utilities::MPI::this_mpi_process (mpi_communicator))
 	  {
 	    for (PetscInt i = istart; i < iend; ++i)
@@ -1288,6 +1312,168 @@ template<int dim>
       rebuild_Matrix_U_preconditioners = true;
     pcout << "   Solved U in " << iter << " iterations." << std::endl;
   }
+
+template<int dim>
+  void
+  NavierStokesSolver<dim>::solve_U_serial (
+      const ConstraintMatrix &constraints,
+      PETScWrappers::MPI::SparseMatrix &Matrix,
+      std_cxx1x::shared_ptr<PETScWrappers::PreconditionBoomerAMG> preconditioner,
+      PETScWrappers::MPI::Vector &completely_distributed_solution,
+      const PETScWrappers::MPI::Vector &rhs)
+  {
+    SolverControl solver_control (dof_handler_U.n_dofs (), 1e-6);
+    //  PETScWrappers::SolverCG solver(solver_control, mpi_communicator);
+    //  PETScWrappers::SolverGMRES solver(solver_control, mpi_communicator);
+    //  PETScWrappers::SolverChebychev solver(solver_control, mpi_communicator);
+    PETScWrappers::SolverBicgstab solver (solver_control, mpi_communicator);
+    constraints.distribute (completely_distributed_solution);
+
+    ///////////////////////////////////////////////////////////////////////////
+
+    KSP ksp;
+    PC pc;
+    Mat A, M;
+    Vec X, B, D;
+    KSPConvergedReason reason;
+    PetscInt its;
+    PetscErrorCode ierr;
+    int N = dof_handler_U.n_dofs ();
+
+    int rows_total = Matrix.m ();
+    int columns_total = Matrix.n ();
+    int nonzeroguess = Matrix.n_nonzero_elements () / rows_total * 10;
+
+    MatCreateSeqAIJ (mpi_communicator, N, N, nonzeroguess, NULL, &A);
+    VecCreateSeq (mpi_communicator, N, &B);
+    VecDuplicate (B, &X);
+    typedef types::global_dof_index size_type;
+    std::pair < PETScWrappers::MatrixBase::size_type, PETScWrappers::MatrixBase::size_type
+	> loc_range = Matrix.local_range ();
+    PetscInt ncols;
+    const PetscInt *colnums;
+    const PetscScalar *values;
+    PETScWrappers::MatrixBase::size_type row;
+    for (row = loc_range.first; row < loc_range.second; ++row)
+      {
+	PetscErrorCode ierr = MatGetRow (Matrix, row, &ncols, &colnums,
+					 &values);
+	AssertThrow (ierr == 0, ExcPETScError (ierr));
+	for (PetscInt col = 0; col < ncols; ++col)
+	  {
+	    int x_row = row, x_col = colnums[col];
+	    double va = values[col];
+	    MatSetValues (A, 1, &x_row, 1, &x_col, &va, INSERT_VALUES);
+	  }
+	ierr = MatRestoreRow (Matrix, row, &ncols, &colnums, &values);
+      }
+
+    PetscScalar *val;
+    PetscInt nlocal, istart, iend;
+    VecGetArray (rhs, &val);
+    VecGetLocalSize (rhs, &nlocal);
+    VecGetOwnershipRange (rhs, &istart, &iend);
+    for (unsigned int i = 0;
+	i < Utilities::MPI::n_mpi_processes (mpi_communicator); i++)
+      {
+	const int mpi_ierr = MPI_Barrier (mpi_communicator);
+	AssertThrowMPI (mpi_ierr);
+	if (i == Utilities::MPI::this_mpi_process (mpi_communicator))
+	  {
+	    for (int i = 0; i < nlocal; ++i)
+	      {
+		double value = val[i];
+		VecSetValues (B, 1, &i, &value, INSERT_VALUES);
+	      }
+	  }
+      }
+
+    // solveing
+    MatAssemblyBegin (A, MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd (A, MAT_FINAL_ASSEMBLY);
+    VecAssemblyBegin (B);
+    VecAssemblyEnd (B);
+    VecAssemblyBegin (rhs);
+    VecAssemblyEnd (rhs);
+    //    printf ("----------------\n");
+    //    printf ("A=\n");
+    //    MatView (A, PETSC_VIEWER_STDOUT_WORLD);
+    //    printf ("X=\n");
+    //    VecView (X, PETSC_VIEWER_STDOUT_WORLD);
+    //    printf ("B=\n");
+    //    VecView (B, PETSC_VIEWER_STDOUT_WORLD);
+    //    printf ("----------------\n");
+    KSPCreate (mpi_communicator, &ksp);
+    KSPSetOperators (ksp, A, A);
+
+    KSPSetType (ksp, KSPBCGS);
+    KSPSetInitialGuessNonzero (ksp, PETSC_TRUE);
+    KSPGetPC (ksp, &pc);
+    PCSetType (pc, PCICC);
+
+    KSPSetFromOptions (ksp);
+    KSPSetUp (ksp);
+    PCFactorGetMatrix (pc, &M);
+    VecDuplicate (B, &D);
+    MatGetDiagonal (M, D);
+
+    KSPSolve (ksp, B, X);
+    KSPGetConvergedReason (ksp, &reason);
+    if (reason == KSP_DIVERGED_INDEFINITE_PC)
+      {
+	PetscPrintf (PETSC_COMM_WORLD,
+		     "\nDivergence because of indefinite preconditioner;\n");
+	PetscPrintf (
+	    PETSC_COMM_WORLD,
+	    "Run the executable again but with -pc_factor_shift_positive_definite option.\n");
+      }
+    else if (reason < 0)
+      {
+	ierr = PetscPrintf (
+	    PETSC_COMM_WORLD,
+	    "\nOther kind of divergence: this should not happen.\n");
+      }
+    else
+      {
+	;
+      }
+
+    VecAssemblyBegin (completely_distributed_solution);
+    VecAssemblyEnd (completely_distributed_solution);
+
+    for (int i = 0; i < N; ++i)
+      {
+	double val;
+	VecGetValues (X, 1, &i, &val);
+	//	printf ("<<<%f \n", val);
+	std::vector<size_type> haha1 =
+	  { i };
+	std::vector<PetscScalar> haha2 =
+	  { val};
+	completely_distributed_solution.set (haha1, haha2);
+
+      }
+    completely_distributed_solution.compress (VectorOperation::insert);
+    int iter;
+    KSPGetIterationNumber (ksp, &iter);
+    KSPDestroy (&ksp);
+    MatDestroy (&A);
+    VecDestroy (&B);
+    VecDestroy (&X);
+    VecDestroy (&D);
+
+    ///////////////////////
+    constraints.distribute (completely_distributed_solution);
+
+    //    printf ("completely_distributed_solution:::::::::::::::::::::::::::::\n");
+    //    completely_distributed_solution.print (std::cout);
+    //    std::cin >> de;
+
+    if (solver_control.last_step () > MAX_NUM_ITER_TO_RECOMPUTE_PRECONDITIONER)
+      rebuild_Matrix_U_preconditioners = true;
+    pcout << "   Solved U in " << iter << " iterations." << std::endl;
+  }
+
 template<int dim>
   void
   NavierStokesSolver<dim>::solve_P (
@@ -1321,10 +1507,10 @@ template<int dim>
     assemble_system_U ();
     save_old_solution ();
     solve_U (constraints, system_Matrix_u, preconditioner_Matrix_u,
-	     completely_distributed_solution_u, system_rhs_u);
+		    completely_distributed_solution_u, system_rhs_u);
     locally_relevant_solution_u = completely_distributed_solution_u;
     solve_U (constraints, system_Matrix_v, preconditioner_Matrix_v,
-	     completely_distributed_solution_v, system_rhs_v);
+		    completely_distributed_solution_v, system_rhs_v);
     locally_relevant_solution_v = completely_distributed_solution_v;
     if (dim == 3)
       {

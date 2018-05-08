@@ -102,6 +102,9 @@ template<int dim>
     ///////////////////
     void
     nth_time_step ();
+
+    void
+    set_time_step (double new_time_step);
     ///////////
     // SETUP //
     ///////////
@@ -376,6 +379,13 @@ template<int dim>
     this->boundary_values_u = boundary_values_u;
   }
 
+template<int dim>
+  void
+  LevelSetSolver<dim>::set_time_step (double new_time_step)
+  {
+    time_step = new_time_step;
+  }
+
 //////////////////////////////////
 ////////// SET VELOCITY //////////
 //////////////////////////////////
@@ -635,11 +645,12 @@ template<int dim>
     ML_vector = 0;
 
     const QGauss<dim> quadrature_formula (degree_MAX + 1);
-    FEValues<dim> fe_values_LS (
-	fe_LS,
-	quadrature_formula,
-	update_values | update_gradients | update_quadrature_points
-	    | update_JxW_values);
+    FEValues < dim
+	> fe_values_LS (
+	    fe_LS,
+	    quadrature_formula,
+	    update_values | update_gradients | update_quadrature_points
+		| update_JxW_values);
 
     const unsigned int dofs_per_cell = fe_LS.dofs_per_cell;
     const unsigned int n_q_points = quadrature_formula.size ();
@@ -691,11 +702,12 @@ template<int dim>
     MC_matrix = 0;
 
     const QGauss<dim> quadrature_formula (degree_MAX + 1);
-    FEValues<dim> fe_values_LS (
-	fe_LS,
-	quadrature_formula,
-	update_values | update_gradients | update_quadrature_points
-	    | update_JxW_values);
+    FEValues < dim
+	> fe_values_LS (
+	    fe_LS,
+	    quadrature_formula,
+	    update_values | update_gradients | update_quadrature_points
+		| update_JxW_values);
 
     const unsigned int dofs_per_cell = fe_LS.dofs_per_cell;
     const unsigned int n_q_points = quadrature_formula.size ();
@@ -750,11 +762,12 @@ template<int dim>
     CTz_matrix = 0;
 
     const QGauss<dim> quadrature_formula (degree_MAX + 1);
-    FEValues<dim> fe_values_LS (
-	fe_LS,
-	quadrature_formula,
-	update_values | update_gradients | update_quadrature_points
-	    | update_JxW_values);
+    FEValues < dim
+	> fe_values_LS (
+	    fe_LS,
+	    quadrature_formula,
+	    update_values | update_gradients | update_quadrature_points
+		| update_JxW_values);
 
     const unsigned int dofs_per_cell_LS = fe_LS.dofs_per_cell;
     const unsigned int n_q_points = quadrature_formula.size ();
@@ -766,11 +779,11 @@ template<int dim>
     FullMatrix<double> cell_Cji_y (dofs_per_cell_LS, dofs_per_cell_LS);
     FullMatrix<double> cell_Cji_z (dofs_per_cell_LS, dofs_per_cell_LS);
 
-    std::vector<Tensor<1, dim> > shape_grads_LS (dofs_per_cell_LS);
+    std::vector < Tensor<1, dim> > shape_grads_LS (dofs_per_cell_LS);
     std::vector<double> shape_values_LS (dofs_per_cell_LS);
 
-    std::vector<types::global_dof_index> local_dof_indices_LS (
-	dofs_per_cell_LS);
+    std::vector < types::global_dof_index
+	> local_dof_indices_LS (dofs_per_cell_LS);
 
     typename DoFHandler<dim>::active_cell_iterator cell_LS, endc_LS;
     cell_LS = dof_handler_LS.begin_active ();
@@ -864,28 +877,30 @@ template<int dim>
     K_times_solution = 0;
 
     const QGauss<dim> quadrature_formula (degree_MAX + 1);
-    FEValues<dim> fe_values_LS (
-	fe_LS,
-	quadrature_formula,
-	update_values | update_gradients | update_quadrature_points
-	    | update_JxW_values);
-    FEValues<dim> fe_values_U (
-	fe_U,
-	quadrature_formula,
-	update_values | update_gradients | update_quadrature_points
-	    | update_JxW_values);
+    FEValues < dim
+	> fe_values_LS (
+	    fe_LS,
+	    quadrature_formula,
+	    update_values | update_gradients | update_quadrature_points
+		| update_JxW_values);
+    FEValues < dim
+	> fe_values_U (
+	    fe_U,
+	    quadrature_formula,
+	    update_values | update_gradients | update_quadrature_points
+		| update_JxW_values);
     const unsigned int dofs_per_cell = fe_LS.dofs_per_cell;
     const unsigned int n_q_points = quadrature_formula.size ();
 
     Vector<double> cell_K_times_solution (dofs_per_cell);
 
-    std::vector<Tensor<1, dim> > un_grads (n_q_points);
+    std::vector < Tensor<1, dim> > un_grads (n_q_points);
     std::vector<double> old_vx_values (n_q_points);
     std::vector<double> old_vy_values (n_q_points);
     std::vector<double> old_vz_values (n_q_points);
 
     std::vector<double> shape_values (dofs_per_cell);
-    std::vector<Tensor<1, dim> > shape_grads (dofs_per_cell);
+    std::vector < Tensor<1, dim> > shape_grads (dofs_per_cell);
 
     Vector<double> un_dofs (dofs_per_cell);
 
@@ -897,7 +912,7 @@ template<int dim>
     typename DoFHandler<dim>::active_cell_iterator cell_U =
 	dof_handler_U.begin_active ();
 
-    Tensor<1, dim> v;
+    Tensor < 1, dim > v;
     for (; cell_LS != endc_LS; ++cell_U, ++cell_LS)
       if (cell_LS->is_locally_owned ())
 	{
@@ -1082,24 +1097,26 @@ template<int dim>
     SuppSize_matrix = 0;
 
     const QGauss<dim> quadrature_formula (degree_MAX + 1);
-    FEValues<dim> fe_values_U (
-	fe_U,
-	quadrature_formula,
-	update_values | update_gradients | update_quadrature_points
-	    | update_JxW_values);
-    FEValues<dim> fe_values_LS (
-	fe_LS,
-	quadrature_formula,
-	update_values | update_gradients | update_quadrature_points
-	    | update_JxW_values);
+    FEValues < dim
+	> fe_values_U (
+	    fe_U,
+	    quadrature_formula,
+	    update_values | update_gradients | update_quadrature_points
+		| update_JxW_values);
+    FEValues < dim
+	> fe_values_LS (
+	    fe_LS,
+	    quadrature_formula,
+	    update_values | update_gradients | update_quadrature_points
+		| update_JxW_values);
 
     const unsigned int dofs_per_cell_LS = fe_LS.dofs_per_cell;
     const unsigned int n_q_points = quadrature_formula.size ();
 
     std::vector<double> uqn (n_q_points); // un at q point
     std::vector<double> uqnm1 (n_q_points);
-    std::vector<Tensor<1, dim> > guqn (n_q_points); //grad of uqn
-    std::vector<Tensor<1, dim> > guqnm1 (n_q_points);
+    std::vector < Tensor<1, dim> > guqn (n_q_points); //grad of uqn
+    std::vector < Tensor<1, dim> > guqnm1 (n_q_points);
 
     std::vector<double> vxqn (n_q_points);
     std::vector<double> vyqn (n_q_points);
@@ -1111,11 +1128,11 @@ template<int dim>
     FullMatrix<double> cell_EntRes (dofs_per_cell_LS, dofs_per_cell_LS);
     FullMatrix<double> cell_volume (dofs_per_cell_LS, dofs_per_cell_LS);
 
-    std::vector<Tensor<1, dim> > shape_grads_LS (dofs_per_cell_LS);
+    std::vector < Tensor<1, dim> > shape_grads_LS (dofs_per_cell_LS);
     std::vector<double> shape_values_LS (dofs_per_cell_LS);
 
-    std::vector<types::global_dof_index> local_dof_indices_LS (
-	dofs_per_cell_LS);
+    std::vector < types::global_dof_index
+	> local_dof_indices_LS (dofs_per_cell_LS);
 
     typename DoFHandler<dim>::active_cell_iterator cell_LS, endc_LS;
     cell_LS = dof_handler_LS.begin_active ();
@@ -1636,8 +1653,8 @@ template<int dim>
 	int gi = *idofs_iter;
 	// get i-th row of mass matrix (dummy, I just need the indices gj)
 	MatGetRow (MC_matrix, gi, &ncolumns, &gj, &MCi);
-	sparsity_pattern[gi] = std::vector<types::global_dof_index> (
-	    gj, gj + ncolumns);
+	sparsity_pattern[gi] = std::vector < types::global_dof_index
+	    > (gj, gj + ncolumns);
 	MatRestoreRow (MC_matrix, gi, &ncolumns, &gj, &MCi);
       }
   }
@@ -1684,8 +1701,8 @@ template<int dim>
 		  *preconditioner);
     constraints.distribute (completely_distributed_solution);
     if (verbose == true)
-      pcout << "  Phi Solved in " << solver_control.last_step () << " iterations."
-	  << std::endl;
+      pcout << "  Phi Solved in " << solver_control.last_step ()
+	  << " iterations." << std::endl;
   }
 
 template<int dim>

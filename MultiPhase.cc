@@ -740,7 +740,7 @@ else if (PROBLEM == FALLING_DROP)
 					       Point<dim> (0.0, 0.0),
 					       Point<dim> (0.3, 0.9), true);
   }
-triangulation.refine_global (6);
+triangulation.refine_global (7);
 
 //  std::ofstream out ("grid-1.eps");
 //  GridOut grid_out;
@@ -855,8 +855,8 @@ MPI_Status status;
 double umax_0;
 double umax_max_0 = 0;
 
-cfl = 0.15 * 0.11 / min_h; // change the values of cfl to adjust the time_step_size
-int N = triangulation.n_active_cells () * P_n;
+cfl = 0.15 * 0.01 / min_h; // change the values of cfl to adjust the time_step_size
+int N = triangulation.n_global_active_cells ();
 for (timestep_number = 1, time = time_step; timestep_number <= 100000; time +=
     time_step, ++timestep_number)
   {
@@ -896,11 +896,13 @@ for (timestep_number = 1, time = time_step; timestep_number <= 100000; time +=
      */
 
     // GET NAVIER STOKES VELOCITY
+    navier_stokes.set_time_step(time_step);
     navier_stokes.set_phi (locally_relevant_solution_phi);
 
     navier_stokes.nth_time_step (); // solve the linear system here.
     navier_stokes.get_velocity (locally_relevant_solution_u,
 				locally_relevant_solution_v);
+    transport_solver.set_time_step(time_step);
     transport_solver.set_velocity (locally_relevant_solution_u,
 				   locally_relevant_solution_v);
     // GET LEVEL SET SOLUTION

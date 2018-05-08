@@ -161,7 +161,7 @@ template<int dim>
     if (PROBLEM == FILLING_TANK)
       {
 	if (x == 1 && y >= 0.48 && y <= 0.52)
-	  return 1.5;
+	  return 0.25;
 	else
 	  return 0.0;
       }
@@ -201,7 +201,7 @@ template<int dim>
     if (PROBLEM == FILLING_TANK)
       {
 	if (x == 0 && y >= 0.48 && y <= 0.52)
-	  return 1.5;
+	  return 0.25;
 	else
 	  return 0.0;
       }
