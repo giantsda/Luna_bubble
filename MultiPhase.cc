@@ -747,7 +747,7 @@ template<int dim>
 						   Point < dim > (0.3, 0.9),
 						   true);
       }
-    triangulation.refine_global (7);
+    triangulation.refine_global (4);
 
 //  std::ofstream out ("grid-1.eps");
 //  GridOut grid_out;
@@ -884,6 +884,7 @@ template<int dim>
 	if (P != 0)
 	  {
 	    MPI_Send (&local_umax_i, 1, MPI_DOUBLE, 0, 0, mpi_communicator);
+
 	  }
 	if (P == 0)
 	  {
@@ -901,12 +902,14 @@ template<int dim>
 		MPI_Send (&time_step_0, 1, MPI_DOUBLE, i, 0, mpi_communicator);
 	      }
 	    time_step = time_step_0;
+	    printf ("infomation send from P0 done! \n");
 	  }
 	if (P != 0)
 	  {
 	    MPI_Recv (&time_step, 1, MPI_DOUBLE, 0, 0, mpi_communicator,
 		      &status);
 	  }
+
 	/* these lines transfer the local u_max to processor 0 and transfer the
 	 * new time step size back to all processors.
 	 */
@@ -915,9 +918,38 @@ template<int dim>
 	navier_stokes.set_time_step (time_step);
 	navier_stokes.set_phi (locally_relevant_solution_phi);
 
+	for (int i = 0; i < P_n; i++)
+	  {
+	    if (P == i)
+	      {
+		time (&rawtime);
+		timeinfo = localtime (&rawtime);
+		printf ("P %d ready to solve linear system time = %s\n", P,
+			asctime (timeinfo));
+
+	      }
+	    MPI_Barrier (mpi_communicator);
+
+	  }
+
 	navier_stokes.nth_time_step (); // solve the linear system here.
 	navier_stokes.get_velocity (locally_relevant_solution_u,
 				    locally_relevant_solution_v);
+
+	for (int i = 0; i < P_n; i++)
+	  {
+	    if (P == i)
+	      {
+		time (&rawtime);
+		timeinfo = localtime (&rawtime);
+		printf (
+		    "P %d solved linear system and copied data to main; time = %s\n",
+		    P, asctime (timeinfo));
+	      }
+	    MPI_Barrier (mpi_communicator);
+
+	  }
+
 	transport_solver.set_time_step (time_step);
 	transport_solver.set_velocity (locally_relevant_solution_u,
 				       locally_relevant_solution_v);
