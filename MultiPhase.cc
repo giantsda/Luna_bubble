@@ -36,6 +36,7 @@
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/fe/mapping_q.h>
 #include <deal.II/grid/grid_out.h>
+#include <time.h>
 
 using namespace dealii;
 
@@ -138,7 +139,7 @@ template<int dim>
 
     ConstraintMatrix constraints;
 
-    double time;
+    double time_0;
     double time_step;
     double final_time;
     unsigned int timestep_number;
@@ -178,8 +179,8 @@ template<int dim>
       mpi_communicator (MPI_COMM_WORLD), triangulation (
 	  mpi_communicator,
 	  typename Triangulation<dim>::MeshSmoothing (
-	      Triangulation<dim>::smoothing_on_refinement
-		  | Triangulation<dim>::smoothing_on_coarsening)), degree_LS (
+	      Triangulation < dim > ::smoothing_on_refinement
+		  | Triangulation < dim > ::smoothing_on_coarsening)), degree_LS (
 	  degree_LS), dof_handler_LS (triangulation), fe_LS (degree_LS), degree_U (
 	  degree_U), dof_handler_U (triangulation), fe_U (degree_U), dof_handler_P (
 	  triangulation), fe_P (degree_U - 1), pcout (
@@ -273,7 +274,7 @@ template<int dim>
   void
   MultiPhase<dim>::initial_condition ()
   {
-    time = 0;
+    time_0 = 0;
     // Initial conditions //
     // init condition for phi
     completely_distributed_solution_phi = 0;
@@ -451,21 +452,22 @@ template<int dim>
   MultiPhase<dim>::set_boundary_inlet ()
   {
     const QGauss<dim - 1> face_quadrature_formula (1); // center of the face
-    FEFaceValues<dim> fe_face_values (
-	fe_U, face_quadrature_formula,
-	update_values | update_quadrature_points | update_normal_vectors);
+    FEFaceValues < dim
+	> fe_face_values (
+	    fe_U, face_quadrature_formula,
+	    update_values | update_quadrature_points | update_normal_vectors);
     const unsigned int n_face_q_points = face_quadrature_formula.size ();
     std::vector<double> u_value (n_face_q_points);
     std::vector<double> v_value (n_face_q_points);
 
     typename DoFHandler<dim>::active_cell_iterator cell_U =
 	dof_handler_U.begin_active (), endc_U = dof_handler_U.end ();
-    Tensor<1, dim> u;
+    Tensor < 1, dim > u;
 
     for (; cell_U != endc_U; ++cell_U)
       if (cell_U->is_locally_owned ())
-	for (unsigned int face = 0; face < GeometryInfo<dim>::faces_per_cell;
-	    ++face)
+	for (unsigned int face = 0;
+	    face < GeometryInfo < dim > ::faces_per_cell; ++face)
 	  if (cell_U->face (face)->at_boundary ())
 	    {
 	      fe_face_values.reinit (cell_U, face);
@@ -505,242 +507,247 @@ template<int dim>
 	boundary_values_phi[i] = boundary_value_phi->second;
       }
 
-}
-
-template<int dim>
-void
-MultiPhase<dim>::output_results ()
-{
-
-output_rho ();
-//    output_rho_mine ();
-/* enable output_rho_mine () if you want to see the velocity vectors in the output files. this will produce
- * 100 outfiles if you uses 100 processors, each output file describe the velocity field in its owned reigions.
- * I uses this function to debug. you can also write a pvtu file to visualize them together as descrived in
- * step 40, for example.
- */
-output_number++;
-
-}
-
-template<int dim>
-void
-MultiPhase<dim>::output_vectors ()
-{
-DataOut<dim> data_out;
-data_out.attach_dof_handler (dof_handler_LS);
-data_out.add_data_vector (locally_relevant_solution_phi, "phi");
-data_out.build_patches ();
-
-const std::string filename = ("sol_vectors-"
-    + Utilities::int_to_string (output_number, 3) + "."
-    + Utilities::int_to_string (triangulation.locally_owned_subdomain (), 4));
-std::ofstream output ((filename + ".vtu").c_str ());
-data_out.write_vtu (output);
-
-if (Utilities::MPI::this_mpi_process (mpi_communicator) == 0)
-  {
-    std::vector < std::string > filenames;
-    for (unsigned int i = 0;
-	i < Utilities::MPI::n_mpi_processes (mpi_communicator); ++i)
-      filenames.push_back (
-	  "sol_vectors-" + Utilities::int_to_string (output_number, 3) + "."
-	      + Utilities::int_to_string (i, 4) + ".vtu");
-
-    std::ofstream master_output ((filename + ".pvtu").c_str ());
-    data_out.write_pvtu_record (master_output, filenames);
   }
-}
 
 template<int dim>
-void
-MultiPhase<dim>::output_rho ()
-{
-DataOut<dim> data_out;
-data_out.attach_dof_handler (dof_handler_LS);
-std::vector < std::string > solution_names;
-solution_names.push_back ("phi");
-data_out.add_data_vector (locally_relevant_solution_phi, solution_names);
-data_out.build_patches ();
-const std::string filename = ("sol_"
-    + Utilities::int_to_string (output_number, 3) + ".vtu");
-data_out.write_vtu_in_parallel (filename.c_str (), mpi_communicator);
+  void
+  MultiPhase<dim>::output_results ()
+  {
+
+    output_rho ();
+//    output_rho_mine ();
+    /* enable output_rho_mine () if you want to see the velocity vectors in the output files. this will produce
+     * 100 outfiles if you uses 100 processors, each output file describe the velocity field in its owned reigions.
+     * I uses this function to debug. you can also write a pvtu file to visualize them together as descrived in
+     * step 40, for example.
+     */
+    output_number++;
+
+  }
+
+template<int dim>
+  void
+  MultiPhase<dim>::output_vectors ()
+  {
+    DataOut < dim > data_out;
+    data_out.attach_dof_handler (dof_handler_LS);
+    data_out.add_data_vector (locally_relevant_solution_phi, "phi");
+    data_out.build_patches ();
+
+    const std::string filename =
+	("sol_vectors-" + Utilities::int_to_string (output_number, 3) + "."
+	    + Utilities::int_to_string (
+		triangulation.locally_owned_subdomain (), 4));
+    std::ofstream output ((filename + ".vtu").c_str ());
+    data_out.write_vtu (output);
+
+    if (Utilities::MPI::this_mpi_process (mpi_communicator) == 0)
+      {
+	std::vector < std::string > filenames;
+	for (unsigned int i = 0;
+	    i < Utilities::MPI::n_mpi_processes (mpi_communicator); ++i)
+	  filenames.push_back (
+	      "sol_vectors-" + Utilities::int_to_string (output_number, 3) + "."
+		  + Utilities::int_to_string (i, 4) + ".vtu");
+
+	std::ofstream master_output ((filename + ".pvtu").c_str ());
+	data_out.write_pvtu_record (master_output, filenames);
+      }
+  }
+
+template<int dim>
+  void
+  MultiPhase<dim>::output_rho ()
+  {
+    DataOut < dim > data_out;
+    data_out.attach_dof_handler (dof_handler_LS);
+    std::vector < std::string > solution_names;
+    solution_names.push_back ("phi");
+    data_out.add_data_vector (locally_relevant_solution_phi, solution_names);
+    data_out.build_patches ();
+    const std::string filename = ("sol_"
+	+ Utilities::int_to_string (output_number, 3) + ".vtu");
+    data_out.write_vtu_in_parallel (filename.c_str (), mpi_communicator);
 // uses write_vtu_in_parallel to write output file parallelly.
-if (Utilities::MPI::this_mpi_process (mpi_communicator) == 0)
-  std::cout << filename.c_str () << "  is writtern" << std::endl;
-}
+    if (Utilities::MPI::this_mpi_process (mpi_communicator) == 0)
+      std::cout << filename.c_str () << "  is writtern" << std::endl;
+  }
 
 template<int dim>
-void
-MultiPhase<dim>::output_rho_mine ()
-{
+  void
+  MultiPhase<dim>::output_rho_mine ()
+  {
 // look step 35 for more info.
-const FESystem<dim> joint_fe (fe_U, 2, fe_P, 1, fe_LS, 1);
-DoFHandler<dim> joint_dof_handler (triangulation);
-joint_dof_handler.distribute_dofs (joint_fe);
-Vector<double> joint_solution (joint_dof_handler.n_dofs ());
-std::vector<types::global_dof_index> loc_joint_dof_indices (
-    joint_fe.dofs_per_cell), loc_vel_dof_indices (fe_U.dofs_per_cell),
-    loc_pres_dof_indices (fe_P.dofs_per_cell), loc_phi_dof_indices (
-	fe_LS.dofs_per_cell);
-typename DoFHandler<dim>::active_cell_iterator joint_cell =
-    joint_dof_handler.begin_active (), joint_endc = joint_dof_handler.end (),
-    vel_cell = dof_handler_U.begin_active (), pres_cell =
-	dof_handler_P.begin_active (), phi_cell =
-	dof_handler_LS.begin_active ();
-for (; joint_cell != joint_endc;
-    ++joint_cell, ++vel_cell, ++pres_cell, ++phi_cell)
-  if (joint_cell->is_locally_owned ())
-    {
-      joint_cell->get_dof_indices (loc_joint_dof_indices);
-      vel_cell->get_dof_indices (loc_vel_dof_indices);
-      pres_cell->get_dof_indices (loc_pres_dof_indices);
-      phi_cell->get_dof_indices (loc_phi_dof_indices);
-      //		std::cout << "joint_fe.dofs_per_cell=" << joint_fe.dofs_per_cell<< std::endl;
-      for (unsigned int i = 0; i < joint_fe.dofs_per_cell; ++i)
+    const FESystem<dim> joint_fe (fe_U, 2, fe_P, 1, fe_LS, 1);
+    DoFHandler < dim > joint_dof_handler (triangulation);
+    joint_dof_handler.distribute_dofs (joint_fe);
+    Vector<double> joint_solution (joint_dof_handler.n_dofs ());
+    std::vector<types::global_dof_index> loc_joint_dof_indices (
+	joint_fe.dofs_per_cell), loc_vel_dof_indices (fe_U.dofs_per_cell),
+	loc_pres_dof_indices (fe_P.dofs_per_cell), loc_phi_dof_indices (
+	    fe_LS.dofs_per_cell);
+    typename DoFHandler<dim>::active_cell_iterator joint_cell =
+	joint_dof_handler.begin_active (), joint_endc =
+	joint_dof_handler.end (), vel_cell = dof_handler_U.begin_active (),
+	pres_cell = dof_handler_P.begin_active (), phi_cell =
+	    dof_handler_LS.begin_active ();
+    for (; joint_cell != joint_endc;
+	++joint_cell, ++vel_cell, ++pres_cell, ++phi_cell)
+      if (joint_cell->is_locally_owned ())
 	{
-	  int first = joint_fe.system_to_base_index (i).first.first;
-	  int second = joint_fe.system_to_base_index (i).first.second;
-	  //			std::cout << first << "   " << second << std::endl;
-	  switch (joint_fe.system_to_base_index (i).first.first)
+	  joint_cell->get_dof_indices (loc_joint_dof_indices);
+	  vel_cell->get_dof_indices (loc_vel_dof_indices);
+	  pres_cell->get_dof_indices (loc_pres_dof_indices);
+	  phi_cell->get_dof_indices (loc_phi_dof_indices);
+	  //		std::cout << "joint_fe.dofs_per_cell=" << joint_fe.dofs_per_cell<< std::endl;
+	  for (unsigned int i = 0; i < joint_fe.dofs_per_cell; ++i)
 	    {
-	    case 0:
-	      {
-		if (joint_fe.system_to_base_index (i).first.second == 0)
+	      int first = joint_fe.system_to_base_index (i).first.first;
+	      int second = joint_fe.system_to_base_index (i).first.second;
+	      //			std::cout << first << "   " << second << std::endl;
+	      switch (joint_fe.system_to_base_index (i).first.first)
+		{
+		case 0:
+		  {
+		    if (joint_fe.system_to_base_index (i).first.second == 0)
+		      {
+			joint_solution (loc_joint_dof_indices[i]) =
+			    locally_relevant_solution_u[loc_vel_dof_indices[joint_fe.system_to_base_index (
+				i).second]];
+		      }
+		    else
+		      {
+			joint_solution (loc_joint_dof_indices[i]) =
+			    locally_relevant_solution_v[loc_vel_dof_indices[joint_fe.system_to_base_index (
+				i).second]];
+		      }
+		  }
+		  break;
+		case 1:
+		  joint_solution (loc_joint_dof_indices[i]) =
+		      locally_relevant_solution_p (
+			  loc_pres_dof_indices[joint_fe.system_to_base_index (i).second]);
+		  break;
+		case 2:
 		  {
 		    joint_solution (loc_joint_dof_indices[i]) =
-			locally_relevant_solution_u[loc_vel_dof_indices[joint_fe.system_to_base_index (
-			    i).second]];
+			locally_relevant_solution_phi (
+			    loc_phi_dof_indices[joint_fe.system_to_base_index (
+				i).second]);
 		  }
-		else
-		  {
-		    joint_solution (loc_joint_dof_indices[i]) =
-			locally_relevant_solution_v[loc_vel_dof_indices[joint_fe.system_to_base_index (
-			    i).second]];
-		  }
-	      }
-	      break;
-	    case 1:
-	      joint_solution (loc_joint_dof_indices[i]) =
-		  locally_relevant_solution_p (
-		      loc_pres_dof_indices[joint_fe.system_to_base_index (i).second]);
-	      break;
-	    case 2:
-	      {
-		joint_solution (loc_joint_dof_indices[i]) =
-		    locally_relevant_solution_phi (
-			loc_phi_dof_indices[joint_fe.system_to_base_index (i).second]);
-	      }
-	      break;
-	    default:
-	      Assert(false, ExcInternalError())
-	      ;
+		  break;
+		default:
+		  Assert (false, ExcInternalError ());
+		}
 	    }
 	}
-    }
 //
-std::vector < std::string > joint_solution_names (dim, "velocity");
-joint_solution_names.push_back ("p");
-joint_solution_names.push_back ("phi");
-DataOut<dim> data_out;
-data_out.attach_dof_handler (joint_dof_handler);
-std::vector<DataComponentInterpretation::DataComponentInterpretation> component_interpretation (
-    dim + 2, DataComponentInterpretation::component_is_part_of_vector);
-component_interpretation[dim] =
-    DataComponentInterpretation::component_is_scalar;
-component_interpretation[dim + 1] =
-    DataComponentInterpretation::component_is_scalar;
-data_out.add_data_vector (joint_solution, joint_solution_names,
-			  DataOut<dim>::type_dof_data,
-			  component_interpretation);
-data_out.build_patches (2);
+    std::vector < std::string > joint_solution_names (dim, "velocity");
+    joint_solution_names.push_back ("p");
+    joint_solution_names.push_back ("phi");
+    DataOut < dim > data_out;
+    data_out.attach_dof_handler (joint_dof_handler);
+    std::vector < DataComponentInterpretation::DataComponentInterpretation
+	> component_interpretation (
+	    dim + 2, DataComponentInterpretation::component_is_part_of_vector);
+    component_interpretation[dim] =
+	DataComponentInterpretation::component_is_scalar;
+    component_interpretation[dim + 1] =
+	DataComponentInterpretation::component_is_scalar;
+    data_out.add_data_vector (joint_solution, joint_solution_names,
+			      DataOut < dim > ::type_dof_data,
+			      component_interpretation);
+    data_out.build_patches (2);
 
-const std::string name (
-    "sol_" + Utilities::int_to_string (output_number, 5)
-	+ Utilities::int_to_string (
-	    Utilities::MPI::this_mpi_process (mpi_communicator), 3) + ".vtk");
-std::ofstream output (name);
-data_out.write_vtk (output);
-std::cout << name << " is written" << std::endl;
-}
+    const std::string name (
+	"sol_" + Utilities::int_to_string (output_number, 5)
+	    + Utilities::int_to_string (
+		Utilities::MPI::this_mpi_process (mpi_communicator), 3)
+	    + ".vtk");
+    std::ofstream output (name);
+    data_out.write_vtk (output);
+    std::cout << name << " is written" << std::endl;
+  }
 
 template<int dim>
-void
-MultiPhase<dim>::run ()
-{
+  void
+  MultiPhase<dim>::run ()
+  {
 ////////////////////////
 // GENERAL PARAMETERS //
 ////////////////////////
-umax = 1;
-cfl = 0.01;
-verbose = true;
-get_output = true;
-output_number = 0;
+    umax = 1;
+    cfl = 0.01;
+    verbose = true;
+    get_output = true;
+    output_number = 0;
 //  n_refinement=8;
-output_time = 0.1;
-final_time = 10.0;
+    output_time = 0.1;
+    final_time = 10.0;
 //////////////////////////////////////////////
 // PARAMETERS FOR THE NAVIER STOKES PROBLEM //
 //////////////////////////////////////////////
-rho_fluid = 1000.;
-nu_fluid = 1.0;
-rho_air = 1.0;
-nu_air = 1.8e-2;
+    rho_fluid = 1000.;
+    nu_fluid = 1.0;
+    rho_air = 1.0;
+    nu_air = 1.8e-2;
 //PROBLEM=BREAKING_DAM;
-PROBLEM = FILLING_TANK;
+    PROBLEM = FILLING_TANK;
 //PROBLEM=SMALL_WAVE_PERTURBATION;
 //PROBLEM=FALLING_DROP;
 
-ForceTerms<dim> force_function (std::vector<double>
-  { -1.0, 0.0 }); // this is the gravity term, change it if you want to change the gravity direction.
+    ForceTerms<dim> force_function (std::vector<double>
+      { -1.0, 0.0 }); // this is the gravity term, change it if you want to change the gravity direction.
 
 //////////////////////////////////////
 // PARAMETERS FOR TRANSPORT PROBLEM //
 //////////////////////////////////////
-cK = 1.0;
-cE = 1.0;
-sharpness_integer = 10; //this will be multipled by min_h
+    cK = 1.0;
+    cE = 1.0;
+    sharpness_integer = 10; //this will be multipled by min_h
 //TRANSPORT_TIME_INTEGRATION=FORWARD_EULER;
-TRANSPORT_TIME_INTEGRATION = SSP33;
+    TRANSPORT_TIME_INTEGRATION = SSP33;
 //ALGORITHM = "MPP_u1";
 //ALGORITHM = "NMPP_uH";
-ALGORITHM = "MPP_uH";
+    ALGORITHM = "MPP_uH";
 
 // ADJUST PARAMETERS ACCORDING TO PROBLEM
-if (PROBLEM == FALLING_DROP)
-  n_refinement = 3;
+    if (PROBLEM == FALLING_DROP)
+      n_refinement = 3;
 
 //////////////
 // GEOMETRY //
 //////////////
-if (PROBLEM == FILLING_TANK)
-  {
-    std::vector<unsigned int> repetitions;
-    repetitions.push_back (3);
-    repetitions.push_back (3);
-    GridGenerator::subdivided_hyper_rectangle (triangulation, repetitions,
-					       Point<dim> (0.0, 0.0),
-					       Point<dim> (1, 1), true);
-  }
-else if (PROBLEM == BREAKING_DAM || PROBLEM == SMALL_WAVE_PERTURBATION)
-  {
-    std::vector<unsigned int> repetitions;
-    repetitions.push_back (2);
-    repetitions.push_back (1);
-    GridGenerator::subdivided_hyper_rectangle (triangulation, repetitions,
-					       Point<dim> (0.0, 0.0),
-					       Point<dim> (1.0, 0.5), true);
-  }
-else if (PROBLEM == FALLING_DROP)
-  {
-    std::vector<unsigned int> repetitions;
-    repetitions.push_back (1);
-    repetitions.push_back (4);
-    GridGenerator::subdivided_hyper_rectangle (triangulation, repetitions,
-					       Point<dim> (0.0, 0.0),
-					       Point<dim> (0.3, 0.9), true);
-  }
-triangulation.refine_global (7);
+    if (PROBLEM == FILLING_TANK)
+      {
+	std::vector<unsigned int> repetitions;
+	repetitions.push_back (3);
+	repetitions.push_back (3);
+	GridGenerator::subdivided_hyper_rectangle (triangulation, repetitions,
+						   Point < dim > (0.0, 0.0),
+						   Point < dim > (1, 1), true);
+      }
+    else if (PROBLEM == BREAKING_DAM || PROBLEM == SMALL_WAVE_PERTURBATION)
+      {
+	std::vector<unsigned int> repetitions;
+	repetitions.push_back (2);
+	repetitions.push_back (1);
+	GridGenerator::subdivided_hyper_rectangle (triangulation, repetitions,
+						   Point < dim > (0.0, 0.0),
+						   Point < dim > (1.0, 0.5),
+						   true);
+      }
+    else if (PROBLEM == FALLING_DROP)
+      {
+	std::vector<unsigned int> repetitions;
+	repetitions.push_back (1);
+	repetitions.push_back (4);
+	GridGenerator::subdivided_hyper_rectangle (triangulation, repetitions,
+						   Point < dim > (0.0, 0.0),
+						   Point < dim > (0.3, 0.9),
+						   true);
+      }
+    triangulation.refine_global (7);
 
 //  std::ofstream out ("grid-1.eps");
 //  GridOut grid_out;
@@ -749,52 +756,53 @@ triangulation.refine_global (7);
 
 // uncomment above lines to witre output files for the mesh.
 
-if (Utilities::MPI::this_mpi_process (mpi_communicator) == 0)
-  std::cout << "Number of active cells: " << triangulation.n_active_cells ()
-      << "   using processors:"
-      << Utilities::MPI::n_mpi_processes (mpi_communicator) << std::endl;
+    if (Utilities::MPI::this_mpi_process (mpi_communicator) == 0)
+      std::cout << "Number of active cells: " << triangulation.n_active_cells ()
+	  << "   using processors:"
+	  << Utilities::MPI::n_mpi_processes (mpi_communicator) << std::endl;
 // SETUP
-setup ();
+    setup ();
 
 // PARAMETERS FOR TIME STEPPING
-min_h = GridTools::minimal_cell_diameter (triangulation) / std::sqrt (2);
+    min_h = GridTools::minimal_cell_diameter (triangulation) / std::sqrt (2);
 
-if (Utilities::MPI::this_mpi_process (mpi_communicator) == 0)
-  printf ("cfl * min_h / umax * 5=%f  \n", cfl * min_h / umax * 5);
-time_step = 0.0001; // set the initial time_step size as a small number since it will change based on the largest velocity;
-sharpness = 0.01; // this velue is used to initialize phi profile.
-std::cout << "sharpness =  " << sharpness << std::endl;
+    if (Utilities::MPI::this_mpi_process (mpi_communicator) == 0)
+      printf ("cfl * min_h / umax * 5=%f  \n", cfl * min_h / umax * 5);
+    time_step = 0.0001; // set the initial time_step size as a small number since it will change based on the largest velocity;
+    sharpness = 0.01; // this velue is used to initialize phi profile.
+    std::cout << "sharpness =  " << sharpness << std::endl;
 // INITIAL CONDITIONS
-initial_condition ();
+    initial_condition ();
 
 // NAVIER STOKES SOLVER
-NavierStokesSolver<dim> navier_stokes (degree_LS, degree_U, time_step, eps,
-				       rho_air, nu_air, rho_fluid, nu_fluid,
-				       force_function, verbose, triangulation,
-				       mpi_communicator);
+    NavierStokesSolver<dim> navier_stokes (degree_LS, degree_U, time_step, eps,
+					   rho_air, nu_air, rho_fluid, nu_fluid,
+					   force_function, verbose,
+					   triangulation, mpi_communicator);
 // BOUNDARY CONDITIONS FOR NAVIER STOKES
-get_boundary_values_U ();
+    get_boundary_values_U ();
 
-navier_stokes.set_boundary_conditions (boundary_values_id_u,
-				       boundary_values_id_v, boundary_values_u,
-				       boundary_values_v);
+    navier_stokes.set_boundary_conditions (boundary_values_id_u,
+					   boundary_values_id_v,
+					   boundary_values_u,
+					   boundary_values_v);
 
 //set INITIAL CONDITION within NAVIER STOKES
-navier_stokes.initial_condition (locally_relevant_solution_phi,
-				 locally_relevant_solution_u,
-				 locally_relevant_solution_v,
-				 locally_relevant_solution_p);
+    navier_stokes.initial_condition (locally_relevant_solution_phi,
+				     locally_relevant_solution_u,
+				     locally_relevant_solution_v,
+				     locally_relevant_solution_p);
 
 // TRANSPORT SOLVER
-LevelSetSolver<dim> transport_solver (degree_LS, degree_U, time_step, cK, cE,
-				      verbose, ALGORITHM,
-				      TRANSPORT_TIME_INTEGRATION, triangulation,
-				      mpi_communicator);
+    LevelSetSolver<dim> transport_solver (degree_LS, degree_U, time_step, cK,
+					  cE, verbose, ALGORITHM,
+					  TRANSPORT_TIME_INTEGRATION,
+					  triangulation, mpi_communicator);
 // BOUNDARY CONDITIONS FOR PHI
-get_boundary_values_phi (boundary_values_id_phi, boundary_values_phi);
+    get_boundary_values_phi (boundary_values_id_phi, boundary_values_phi);
 
-transport_solver.set_boundary_conditions (boundary_values_id_phi,
-					  boundary_values_phi);
+    transport_solver.set_boundary_conditions (boundary_values_id_phi,
+					      boundary_values_phi);
 
 //    completely_distributed_solution_u = locally_relevant_solution_u;
 //    completely_distributed_solution_u.set (boundary_values_id_u,
@@ -820,141 +828,156 @@ transport_solver.set_boundary_conditions (boundary_values_id_phi,
 //    completely_distributed_solution_phi.print(std::cout);
 
 // enable above lines if you want to output the velocity vectors. I comment them to speed up the simulation.
-output_results ();
+    output_results ();
 
 //set INITIAL CONDITION within TRANSPORT PROBLEM
-transport_solver.initial_condition (locally_relevant_solution_phi,
-				    locally_relevant_solution_u,
-				    locally_relevant_solution_v);
-int dofs_U = 2 * dof_handler_U.n_dofs ();
-int dofs_P = 2 * dof_handler_P.n_dofs ();
-int dofs_LS = dof_handler_LS.n_dofs ();
-int dofs_TOTAL = dofs_U + dofs_P + dofs_LS;
+    transport_solver.initial_condition (locally_relevant_solution_phi,
+					locally_relevant_solution_u,
+					locally_relevant_solution_v);
+    int dofs_U = 2 * dof_handler_U.n_dofs ();
+    int dofs_P = 2 * dof_handler_P.n_dofs ();
+    int dofs_LS = dof_handler_LS.n_dofs ();
+    int dofs_TOTAL = dofs_U + dofs_P + dofs_LS;
 
 // NO BOUNDARY CONDITIONS for LEVEL SET
 
-if (Utilities::MPI::this_mpi_process (mpi_communicator) == 0)
-  {
-    pcout << "Cfl: " << cfl << "; umax: " << umax << "; min h: " << min_h
-	<< "; time step: " << time << std::endl;
-    pcout << "   Number of active cells:       "
-	<< triangulation.n_global_active_cells () << std::endl
-	<< "   Number of degrees of freedom: " << std::endl << "      U: "
-	<< dofs_U << std::endl << "      P: " << dofs_P << std::endl
-	<< "      LS: " << dofs_LS << std::endl << "      TOTAL: " << dofs_TOTAL
-	<< std::endl;
+    if (Utilities::MPI::this_mpi_process (mpi_communicator) == 0)
+      {
+	pcout << "Cfl: " << cfl << "; umax: " << umax << "; min h: " << min_h
+	    << "; time step: " << time_0 << std::endl;
+	pcout << "   Number of active cells:       "
+	    << triangulation.n_global_active_cells () << std::endl
+	    << "   Number of degrees of freedom: " << std::endl << "      U: "
+	    << dofs_U << std::endl << "      P: " << dofs_P << std::endl
+	    << "      LS: " << dofs_LS << std::endl << "      TOTAL: "
+	    << dofs_TOTAL << std::endl;
 
-  }
+      }
 
 // TIME STEPPING
-int every = 1;
-int P, P_n;
-MPI_Comm_rank (mpi_communicator, &P);
-MPI_Comm_size (mpi_communicator, &P_n);
-MPI_Status status;
-double umax_0;
-double umax_max_0 = 0;
+    int every = 1;
+    int P, P_n;
+    MPI_Comm_rank (mpi_communicator, &P);
+    MPI_Comm_size (mpi_communicator, &P_n);
+    MPI_Status status;
+    double umax_0;
+    double umax_max_0 = 0;
 
-cfl = 0.15 * 0.008 / min_h; // change the values of cfl to adjust the time_step_size
-int N = triangulation.n_global_active_cells ();
-for (timestep_number = 1, time = time_step; timestep_number <= 100000; time +=
-    time_step, ++timestep_number)
-  {
-    if (P == 0)
-      printf (
-	  "N= %d; current step is: %d;  at t= %f;  time_step=%f;  umax= %f; \n",
-	  N, timestep_number, time, time_step, umax_max_0);
+    time_t timer;
+    double seconds;
+    time (&timer);
+    double initial_seconds = timer;
 
-    double local_umax_i = get_u_max ();
-
-    if (P != 0)
-      {
-	MPI_Send (&local_umax_i, 1, MPI_DOUBLE, 0, 0, mpi_communicator);
-      }
-    if (P == 0)
+    cfl = 0.15 * 0.008 / min_h; // change the values of cfl to adjust the time_step_size
+    int N = triangulation.n_global_active_cells ();
+    for (timestep_number = 1, time_0 = time_step; timestep_number <= 100000;
+	time_0 += time_step, ++timestep_number)
       {
 
-	for (int i = 1; i < P_n; i++)
+	time (&timer); /* get current time; same as: timer = time(NULL)  */
+	double now = timer;
+	seconds = now - initial_seconds;
+	if (P == 0)
+	  printf (
+	      "N= %d; current step is: %d;  at t= %f;  time_step=%f;  umax= %f; at t= %.f seconds \n",
+	      N, timestep_number, time_0, time_step, umax_max_0,seconds);
+
+	double local_umax_i = get_u_max ();
+
+	if (P != 0)
 	  {
-	    MPI_Recv (&umax_0, 1, MPI_DOUBLE, i, 0, mpi_communicator, &status);
-	    umax_max_0 = (umax_max_0 > umax_0 ? umax_max_0 : umax_0);
+	    MPI_Send (&local_umax_i, 1, MPI_DOUBLE, 0, 0, mpi_communicator);
 	  }
-	umax_max_0 = (umax_max_0 > 0.15 ? umax_max_0 : 0.15);
-	double time_step_0 = cfl * min_h / umax_max_0;
-	for (int i = 1; i < P_n; i++)
+	if (P == 0)
 	  {
-	    MPI_Send (&time_step_0, 1, MPI_DOUBLE, i, 0, mpi_communicator);
+
+	    for (int i = 1; i < P_n; i++)
+	      {
+		MPI_Recv (&umax_0, 1, MPI_DOUBLE, i, 0, mpi_communicator,
+			  &status);
+		umax_max_0 = (umax_max_0 > umax_0 ? umax_max_0 : umax_0);
+	      }
+	    umax_max_0 = (umax_max_0 > 0.15 ? umax_max_0 : 0.15);
+	    double time_step_0 = cfl * min_h / umax_max_0;
+	    for (int i = 1; i < P_n; i++)
+	      {
+		MPI_Send (&time_step_0, 1, MPI_DOUBLE, i, 0, mpi_communicator);
+	      }
+	    time_step = time_step_0;
 	  }
-	time_step = time_step_0;
-      }
-    if (P != 0)
-      {
-	MPI_Recv (&time_step, 1, MPI_DOUBLE, 0, 0, mpi_communicator, &status);
-      }
-    /* these lines transfer the local u_max to processor 0 and transfer the
-     * new time step size back to all processors.
-     */
+	if (P != 0)
+	  {
+	    MPI_Recv (&time_step, 1, MPI_DOUBLE, 0, 0, mpi_communicator,
+		      &status);
+	  }
+	/* these lines transfer the local u_max to processor 0 and transfer the
+	 * new time step size back to all processors.
+	 */
 
-    // GET NAVIER STOKES VELOCITY
-    navier_stokes.set_time_step(time_step);
-    navier_stokes.set_phi (locally_relevant_solution_phi);
+	// GET NAVIER STOKES VELOCITY
+	navier_stokes.set_time_step (time_step);
+	navier_stokes.set_phi (locally_relevant_solution_phi);
 
-    navier_stokes.nth_time_step (); // solve the linear system here.
+	navier_stokes.nth_time_step (); // solve the linear system here.
+	navier_stokes.get_velocity (locally_relevant_solution_u,
+				    locally_relevant_solution_v);
+	transport_solver.set_time_step (time_step);
+	transport_solver.set_velocity (locally_relevant_solution_u,
+				       locally_relevant_solution_v);
+	// GET LEVEL SET SOLUTION
+	transport_solver.nth_time_step (); // solve the linear system of phi here
+	transport_solver.get_unp1 (locally_relevant_solution_phi);
+	if (every % 5 == 0)   // write the output file every  time step.
+	  output_results ();
+	every++;
+      }
     navier_stokes.get_velocity (locally_relevant_solution_u,
 				locally_relevant_solution_v);
-    transport_solver.set_time_step(time_step);
-    transport_solver.set_velocity (locally_relevant_solution_u,
-				   locally_relevant_solution_v);
-    // GET LEVEL SET SOLUTION
-    transport_solver.nth_time_step (); // solve the linear system of phi here
     transport_solver.get_unp1 (locally_relevant_solution_phi);
-    if (every % 5 == 0)   // write the output file every  time step.
+    if (get_output)
       output_results ();
-    every++;
   }
-navier_stokes.get_velocity (locally_relevant_solution_u,
-			    locally_relevant_solution_v);
-transport_solver.get_unp1 (locally_relevant_solution_phi);
-if (get_output)
-  output_results ();
-}
 
 int
 main (int argc, char *argv[])
 {
-try
-{
-  using namespace dealii;
-  Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, 1);
-  PetscInitialize (&argc, &argv, PETSC_NULL, PETSC_NULL);
-  deallog.depth_console (0);
+  try
     {
-      unsigned int degree_LS = 1;
-      unsigned int degree_U = 2;
-      MultiPhase<2> multi_phase (degree_LS, degree_U);
-      multi_phase.run ();
-      std::cout << "calculation done" << std::endl;
+      using namespace dealii;
+      Utilities::MPI::MPI_InitFinalize mpi_initialization (argc, argv, 1);
+      PetscInitialize (&argc, &argv, PETSC_NULL, PETSC_NULL);
+      deallog.depth_console (0);
+	{
+	  unsigned int degree_LS = 1;
+	  unsigned int degree_U = 2;
+	  MultiPhase<2> multi_phase (degree_LS, degree_U);
+	  multi_phase.run ();
+	  std::cout << "calculation done" << std::endl;
+	}
+
+      PetscFinalize ();
     }
 
-  PetscFinalize ();
-}
-
-catch (std::exception &exc)
-{
-  std::cerr << std::endl << std::endl
-      << "----------------------------------------------------" << std::endl;
-  std::cerr << "Exception on processing: " << std::endl << exc.what ()
-      << std::endl << "Aborting!" << std::endl
-      << "----------------------------------------------------" << std::endl;
-  return 1;
-}
-catch (...)
-{
-  std::cerr << std::endl << std::endl
-      << "----------------------------------------------------" << std::endl;
-  std::cerr << "Unknown exception!" << std::endl << "Aborting!" << std::endl
-      << "----------------------------------------------------" << std::endl;
-  return 1;
-}
-return 0;
+  catch (std::exception &exc)
+    {
+      std::cerr << std::endl << std::endl
+	  << "----------------------------------------------------"
+	  << std::endl;
+      std::cerr << "Exception on processing: " << std::endl << exc.what ()
+	  << std::endl << "Aborting!" << std::endl
+	  << "----------------------------------------------------"
+	  << std::endl;
+      return 1;
+    }
+  catch (...)
+    {
+      std::cerr << std::endl << std::endl
+	  << "----------------------------------------------------"
+	  << std::endl;
+      std::cerr << "Unknown exception!" << std::endl << "Aborting!" << std::endl
+	  << "----------------------------------------------------"
+	  << std::endl;
+      return 1;
+    }
+  return 0;
 }

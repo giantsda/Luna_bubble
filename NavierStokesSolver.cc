@@ -1232,6 +1232,11 @@ template<int dim>
     VecAssemblyBegin (rhs);
     VecAssemblyEnd (rhs);
 
+
+
+
+
+    MPI_Barrier(mpi_communicator);
     // solveing
     KSPCreate (mpi_communicator, &ksp);
     // look http://www.mcs.anl.gov/petsc/petsc-current/docs/manualpages/KSP/KSPCreate.html and their examples for more info.
@@ -1243,6 +1248,9 @@ template<int dim>
     PCSetType (pc, PCEISENSTAT);  // you can change it to other preconditioner
     KSPSetFromOptions (ksp);
     KSPSetUp (ksp);
+
+
+
     KSPSolve (ksp, B, X);
 
     KSPGetConvergedReason (ksp, &reason);
