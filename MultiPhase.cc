@@ -862,25 +862,22 @@ template<int dim>
     MPI_Status status;
     double umax_0;
     double umax_max_0 = 0;
-
-    time_t timer;
-    double seconds;
-    time (&timer);
-    double initial_seconds = timer;
+    time_t rawtime;
+    struct tm * timeinfo;
+    time (&rawtime);
 
     cfl = 0.15 * 0.008 / min_h; // change the values of cfl to adjust the time_step_size
     int N = triangulation.n_global_active_cells ();
     for (timestep_number = 1, time_0 = time_step; timestep_number <= 100000;
 	time_0 += time_step, ++timestep_number)
       {
-
-	time (&timer); /* get current time; same as: timer = time(NULL)  */
-	double now = timer;
-	seconds = now - initial_seconds;
+	time (&rawtime);
+	timeinfo = localtime (&rawtime);
 	if (P == 0)
 	  printf (
-	      "N= %d; current step is: %d;  at t= %f;  time_step=%f;  umax= %f; at t= %.f seconds \n",
-	      N, timestep_number, time_0, time_step, umax_max_0,seconds);
+	      "N= %d; current step is: %d;  at t= %f;  time_step=%f;  umax= %f; current time is %s \n",
+	      N, timestep_number, time_0, time_step, umax_max_0,
+	      asctime (timeinfo));
 
 	double local_umax_i = get_u_max ();
 
